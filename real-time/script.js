@@ -230,5 +230,5 @@ function generatePDF() {
   const textLines = doc.splitTextToSize(fullTranscript, usableWidth);
   doc.text(textLines, margin, margin + 30);
 
-  doc.save("transcricao-gemini.pdf");
+  doc.save("transcricao-InacioTECH.pdf");
 }
