@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transcrição em Tempo Real com ElevenLabs</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Incluindo a biblioteca jsPDF para gerar o PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  </head>
+  <body>
+    <!-- Modal para inserir a Chave de API -->
+    <div id="api-key-modal" class="modal-overlay">
+      <div class="modal-content">
+        <h2>Insira a Chave</h2>
+        <p>
+          Por favor, insira sua chave para continuar. Sua chave será usada
+          apenas no seu navegador.
+        </p>
+        <input
+          type="password"
+          id="api-key-input"
+          placeholder="Cole sua chave de API aqui"
+        />
+        <button id="submit-api-key">Salvar e Continuar</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <h1>Transcrição em Tempo Real</h1>
+      <p>
+        Clique em "Iniciar Gravação" para começar a transcrever seu áudio ao
+        vivo.
+      </p>
+
+      <div class="controls">
+        <button id="start-button" disabled>Iniciar Gravação</button>
+        <button id="pause-button" disabled>Pausar Gravação</button>
+        <button id="stop-button" disabled>Finalizar Gravação</button>
+      </div>
+
+      <div id="transcription-container">
+        <div id="status">Aguardando início...</div>
+        <div id="transcript-display"></div>
+      </div>
+
+      <div class="info">
+        <p>
+          <strong>Início da Gravação:</strong>
+          <span id="start-time">--:--:--</span>
+        </p>
+        <p>
+          <strong>Fim da Gravação:</strong> <span id="end-time">--:--:--</span>
+        </p>
+      </div>
+
+      <button id="pdf-button" disabled>Gerar PDF da Transcrição</button>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
