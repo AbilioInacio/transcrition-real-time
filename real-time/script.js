@@ -206,7 +206,7 @@ function generatePDF() {
   const usableWidth = pageWidth - 2 * margin;
 
   doc.setFont("helvetica", "bold");
-  doc.text("Transcrição de Áudio com Gemini", pageWidth / 2, margin, {
+  doc.text("Transcrição de Áudio com InácioTECH", pageWidth / 2, margin, {
     align: "center",
   });
 
