@@ -9,6 +9,9 @@ body {
   min-height: 100vh;
   margin: 0;
   line-height: 1.6;
+  /* Adicionado para um melhor comportamento em telas pequenas */
+  padding: 1rem;
+  box-sizing: border-box;
 }
 
 .container {
@@ -23,6 +26,7 @@ body {
 
 h1 {
   color: #0b57d0;
+  font-size: 2.2rem; /* Aumentado um pouco para desktop */
 }
 
 .controls {
@@ -92,13 +96,15 @@ button:disabled {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  padding: 1rem;
+  box-sizing: border-box;
 }
 
 .modal-content {
   background: white;
   padding: 2rem;
   border-radius: 8px;
-  width: 90%;
+  width: 100%;
   max-width: 500px;
   text-align: center;
 }
@@ -114,4 +120,43 @@ button:disabled {
 
 .modal-content button {
   width: 100%;
+}
+
+/* =============================================== */
+/* ========== SEÇÃO DE RESPONSIVIDADE ========== */
+/* =============================================== */
+
+/* Estilos para tablets e smartphones (telas com largura até 768px) */
+@media (max-width: 768px) {
+  body {
+    /* Garante que o container não fique colado nas bordas da tela */
+    padding: 0.5rem;
+    align-items: flex-start; /* Alinha o container no topo */
+  }
+
+  .container {
+    /* Reduz o padding horizontal para dar mais espaço ao conteúdo */
+    padding: 1.5rem 1rem;
+  }
+
+  h1 {
+    /* Diminui o tamanho do título principal */
+    font-size: 1.8rem;
+  }
+
+  .controls {
+    /* Faz os botões ficarem um embaixo do outro (em coluna) */
+    flex-direction: column;
+    align-items: stretch; /* Faz os botões ocuparem a largura total */
+  }
+
+  #transcription-container {
+    /* Reduz a altura mínima em telas menores */
+    min-height: 150px;
+  }
+
+  .modal-content {
+    /* Reduz o padding do modal para economizar espaço */
+    padding: 1.5rem;
+  }
 }
