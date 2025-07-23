@@ -14,10 +14,11 @@ const transcriptDisplay = document.getElementById("transcript-display");
 const startTimeSpan = document.getElementById("start-time");
 const endTimeSpan = document.getElementById("end-time");
 
-// --- Variáveis de Estado ---
+// --- Constantes e Variáveis de Estado ---
+const RECORDING_INTERVAL_MS = 10000; // Envia áudio a cada 4 segundos
 let apiKey = "";
 let mediaRecorder;
-let audioChunks = [];
+let stream; // O stream do microfone precisa ser acessível globalmente
 let isRecording = false;
 let isPaused = false;
 let fullTranscript = "";
@@ -45,110 +46,125 @@ async function startRecording() {
   if (isRecording) return;
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Pede acesso ao microfone
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    audioChunks = []; // Limpa chunks anteriores
-    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-
-    mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
-    };
-
-    mediaRecorder.onstop = async () => {
-      // Quando a gravação para (por pausa ou finalização), envia para a API
-      if (audioChunks.length > 0) {
-        statusDiv.textContent = "Transcrevendo áudio... Por favor, aguarde.";
-        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-        await transcribeAudio(audioBlob);
-      }
-      // Para a trilha do microfone apenas quando finalizado
-      if (!isRecording) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-
-    mediaRecorder.start();
     isRecording = true;
     isPaused = false;
 
-    // Atualiza UI
-    if (!startTime) {
-      // Define a hora de início apenas na primeira vez
-      startTime = new Date();
-      startTimeSpan.textContent = startTime.toLocaleTimeString();
-    }
-    statusDiv.textContent = "Gravando... Fale agora.";
-    startBtn.disabled = true;
-    pauseBtn.disabled = false;
-    pauseBtn.textContent = "Pausar Gravação";
-    stopBtn.disabled = false;
-    pdfBtn.disabled = true;
+    // Reseta o estado para uma nova gravação
+    startTime = new Date();
+    startTimeSpan.textContent = startTime.toLocaleTimeString();
+    endTimeSpan.textContent = "--:--:--";
+    fullTranscript = "";
+    transcriptDisplay.textContent = "";
+
+    updateUIForRecordingState();
+
+    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+    // Evento chamado a cada X ms com um pedaço de áudio
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0 && !isPaused) {
+        transcribeAudioChunk(event.data);
+      }
+    };
+
+    // Inicia a gravação e define o intervalo para o ondataavailable
+    mediaRecorder.start(RECORDING_INTERVAL_MS);
   } catch (error) {
     console.error("Erro ao iniciar a gravação:", error);
     alert(
       "Não foi possível acessar o microfone. Verifique as permissões do navegador."
     );
+    resetState();
   }
 }
 
 function togglePause() {
   if (!isRecording) return;
 
+  isPaused = !isPaused;
+
   if (isPaused) {
-    // Se estava pausado, retoma a gravação
-    isPaused = false;
-    startRecording(); // Inicia uma nova gravação que será anexada
-    pauseBtn.textContent = "Pausar Gravação";
-    statusDiv.textContent = "Gravando...";
+    mediaRecorder.pause();
+    statusDiv.textContent = "Gravação pausada.";
   } else {
-    // Se estava gravando, pausa
-    isPaused = true;
-    mediaRecorder.stop(); // Isso vai acionar o onstop e enviar para a API
-    pauseBtn.textContent = "Retomar Gravação";
-    statusDiv.textContent = "Gravação pausada. Processando trecho...";
+    mediaRecorder.resume();
+    statusDiv.textContent = "Gravando...";
   }
+  updateUIForRecordingState();
 }
 
 function stopRecording() {
   if (!isRecording) return;
 
-  isRecording = false;
-  isPaused = false;
-  if (mediaRecorder.state === "recording") {
+  // Para o gravador, o que pode acionar um último ondataavailable
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
     mediaRecorder.stop();
+  }
+
+  // ESSENCIAL: Para as trilhas do microfone para desligá-lo
+  if (stream) {
+    stream.getTracks().forEach((track) => track.stop());
   }
 
   endTime = new Date();
   endTimeSpan.textContent = endTime.toLocaleTimeString();
 
-  // Atualiza UI
-  statusDiv.textContent = "Gravação finalizada. Pronto para gerar o PDF.";
-  startBtn.disabled = false;
-  pauseBtn.disabled = true;
-  pauseBtn.textContent = "Pausar Gravação";
-  stopBtn.disabled = true;
-  pdfBtn.disabled = false;
+  resetState();
 }
 
-// ---- Função Principal de Transcrição com a API do Gemini ----
-async function transcribeAudio(audioBlob) {
-  try {
-    const base64Audio = await blobToBase64(audioBlob);
+// Reseta o estado da UI e das variáveis
+function resetState() {
+  isRecording = false;
+  isPaused = false;
+  updateUIForRecordingState();
+  statusDiv.textContent = "Gravação finalizada. Pronto para gerar o PDF.";
+}
 
-    // Use um modelo recente que suporte áudio, como o gemini-1.5-flash
+// Centraliza a lógica de atualização da UI
+function updateUIForRecordingState() {
+  startBtn.disabled = isRecording;
+  pauseBtn.disabled = !isRecording;
+  stopBtn.disabled = !isRecording;
+  pdfBtn.disabled = isRecording || fullTranscript.length === 0;
+
+  if (isRecording) {
+    pauseBtn.textContent = isPaused ? "Retomar Gravação" : "Pausar Gravação";
+  } else {
+    pauseBtn.textContent = "Pausar Gravação";
+  }
+}
+
+// ---- Função Principal de Transcrição por Pedaços ----
+// SUBSTITUA A FUNÇÃO ANTIGA POR ESTA NOVA VERSÃO
+async function transcribeAudioChunk(audioChunkBlob) {
+  // --- GUARDA DE SEGURANÇA ---
+  // Se o pedaço de áudio for muito pequeno (menos de 100 bytes), ignore-o.
+  // Isso evita o envio de chunks vazios ou silenciosos.
+  if (audioChunkBlob.size < 100) {
+    return;
+  }
+
+  console.log(`Enviando pedaço de áudio com ${audioChunkBlob.size} bytes.`); // Para depuração
+
+  try {
+    const base64Audio = await blobToBase64(audioChunkBlob);
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const requestBody = {
+      systemInstruction: {
+        parts: [
+          {
+            text: "Você é um assistente especialista em transcrição de áudio. Sua única tarefa é transcrever o áudio fornecido para texto em português do Brasil. Responda APENAS com o texto transcrito, sem adicionar nenhuma palavra, comentário ou frase introdutória.",
+          },
+        ],
+      },
       contents: [
         {
           parts: [
-            { text: "Transcreva este áudio em português do Brasil:" },
-            {
-              inline_data: {
-                mime_type: "audio/webm",
-                data: base64Audio,
-              },
-            },
+            { inline_data: { mime_type: "audio/webm", data: base64Audio } },
           ],
         },
       ],
@@ -162,24 +178,28 @@ async function transcribeAudio(audioBlob) {
 
     if (!response.ok) {
       const errorBody = await response.json();
-      throw new Error(`Erro da API: ${errorBody.error.message}`);
+      console.error("Erro detalhado da API:", errorBody);
+      throw new Error(
+        `Erro da API (${response.status}): ${errorBody.error.message}`
+      );
     }
 
     const data = await response.json();
-    const transcript = data.candidates[0].content.parts[0].text;
 
-    fullTranscript += transcript + " ";
-    transcriptDisplay.textContent = fullTranscript;
-
-    if (isRecording && !isPaused) {
-      statusDiv.textContent = "Gravando...";
-    } else if (isPaused) {
-      statusDiv.textContent =
-        "Gravação pausada. Clique em Retomar para continuar.";
+    if (
+      data.candidates &&
+      data.candidates[0].content &&
+      data.candidates[0].content.parts
+    ) {
+      const transcript = data.candidates[0].content.parts[0].text;
+      fullTranscript += transcript.trim() + " ";
+      transcriptDisplay.textContent = fullTranscript;
+    } else {
+      console.warn("Recebida uma resposta vazia ou inesperada da API:", data);
     }
   } catch (error) {
     console.error("Erro na transcrição:", error);
-    statusDiv.textContent = `Erro na transcrição: ${error.message}`;
+    statusDiv.textContent = `Erro na transcrição. Verifique o console para detalhes. ${error}`;
     stopRecording(); // Para tudo em caso de erro
   }
 }
@@ -206,7 +226,7 @@ function generatePDF() {
   const usableWidth = pageWidth - 2 * margin;
 
   doc.setFont("helvetica", "bold");
-  doc.text("Transcrição de Áudio com InácioTECH", pageWidth / 2, margin, {
+  doc.text("Transcrição de Áudio com Gemini", pageWidth / 2, margin, {
     align: "center",
   });
 
@@ -230,5 +250,5 @@ function generatePDF() {
   const textLines = doc.splitTextToSize(fullTranscript, usableWidth);
   doc.text(textLines, margin, margin + 30);
 
-  doc.save("transcricao-InacioTECH.pdf");
+  doc.save("transcricao-gemini.pdf");
 }

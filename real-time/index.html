@@ -3,16 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Transcrição em Tempo Real com ElevenLabs</title>
+    <title>Transcrição Real-Time com Gemini</title>
     <link rel="stylesheet" href="style.css" />
-    <!-- Incluindo a biblioteca jsPDF para gerar o PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   </head>
   <body>
     <!-- Modal para inserir a Chave de API -->
     <div id="api-key-modal" class="modal-overlay">
       <div class="modal-content">
-        <h2>Chave de API da ElevenLabs</h2>
+        <h2>Chave de API do Google Gemini</h2>
         <p>
           Por favor, insira sua chave de API para continuar. Sua chave será
           usada apenas no seu navegador.
@@ -27,11 +26,8 @@
     </div>
 
     <div class="container">
-      <h1>Transcrição em Tempo Real</h1>
-      <p>
-        Clique em "Iniciar Gravação" para começar a transcrever seu áudio ao
-        vivo.
-      </p>
+      <h1>Transcrição Real-Time com Gemini</h1>
+      <p>A transcrição aparecerá em blocos a cada poucos segundos.</p>
 
       <div class="controls">
         <button id="start-button" disabled>Iniciar Gravação</button>
